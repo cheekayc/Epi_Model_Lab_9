@@ -10,21 +10,40 @@ library(deSolve)
 ## COMPLETE THE CODE BELOW YOURSELF
 
 ## step 1 - code up the epidemic model
-SIS2riskGrs <- function(t, state, parameters) {
+SIS2riskGrs = function(t, state, parameters) {
   with(as.list(c(state, parameters)), {
     
     # FILL IN THE EQUATIONS HERE
+    dSH = gammaIH - betaHH*SH*IH - betaHL*SH*IL
+    dSL = gammaIL - betaLH*SL*IH - betaLL*SL*IL
     
-    
+    dIH = betaHH*SH*IH + betaHL*SH*IL - gammaIH
+    dIL = betaLH*SL*IH + betaLL*SL*IL - gammaIL
     
     # FILL IN THE RETURN LIST HERE - MATCH WITH THE NAME OF THE STATE VARIABLES
-    
-    
+    list(c(dSH, dSL, dIH, dIL))
   })
 }
 
 # Step 2:  Set parameters, initial conditions, time steps to integrate the model 
 
+## Transmission rates
+betaHH = 10
+betaHL = 0.1
+betaLH = 0.1
+betaLL = 1
+gamma = 1  # Recovery rate
+
+## Initial state
+NH = 0.2
+NL = 0.8
+IH = 1e-8
+IL = 1e-5
+SH = NH - IH
+SL = NL - IL
+
+## time step
+times = seq(0, 30, by = 0.2)
 
 # Step 3: Run the model 
 
@@ -43,39 +62,39 @@ SIS2riskGrs <- function(t, state, parameters) {
 ## 1. calculate R0 for the two beta matrix
 
 ## SAMPLE CODE FOR THE FIRST BETA MATRIX
-beta= matrix(c(10,.1,.1,1),2,2) # the beta matrix
-NH = 0.2; NL=1-NH;
-n=c(NH,NL)      # n is the vector storing th proportion in each group
-n.matrix=diag(n,2,2)  # matrix related to the population size in each group
+beta = matrix(c(10, 0.1, 0.1, 1), 2, 2) # the beta matrix
+NH = 0.2; NL = 1 - NH;
+n = c(NH, NL)      # n is the vector storing th proportion in each group
+n.matrix = diag(n, 2, 2)  # matrix related to the population size in each group
 # to see it:
 View(n.matrix)
 
-gamma=1; b = 1;
-R.matrix=n.matrix %*% beta / gamma
+gamma = 1; b = 1;
+R.matrix = n.matrix %*% beta / gamma
 # to see the output of the eigen function:
 eigen(R.matrix)
 ## To find R0
-R0=eigen(R.matrix)$values[1]
+R0 = eigen(R.matrix)$values[1]
 
 ## or directly:
-R0=eigen(n.matrix %*% beta)$values[1]/gamma
+R0 = eigen(n.matrix %*% beta)$values[1]/gamma
 
 
 ## 2. proportion to both the contact numbers of the source group and the sink group
 ## SAMPLE CODE TO SET UP THE BETA MATRIX BASED ON THE ASSOTATIVE MIXING METHOD
-beta=matrix(0,2,2)
-Ncontact=c(5,1); # number of contact in each group
-Nk=c(.2,.8); # proportion of populaiton in each group
-M=sum(Ncontact*Nk); # mean number of contact 
+beta = matrix(0, 2, 2) # create a place holder for a 2x2 matrix
+Ncontact = c(5, 1); # number of contact in each group
+Nk = c(0.2, 0.8); # proportion of population in each group
+M = sum(Ncontact*Nk); # mean number of contact 
 ## to consider assortative mixing, use a to change the level of assortativeness
 ## a is the proportion of within group mixing
-a=0.8; # change a to 0, .2, .4, .6, .8, 1
-for(i in 1:2){
-  for (j in 1:2){
-    if(i==j) {
-      beta[i,j]=a*Ncontact[i]/Nk[i]+(1-a)*Ncontact[i]^2/M
+a = 0.8; # change a to 0, 0.2, 0.4, 0.6, 0.8, 1
+for(i in 1:2){ # outer loop will loop through rows
+  for (j in 1:2){ # inner loop will loop through columns
+    if(i == j) { # 2 equal signs test if the two quantities are the same. In this case, the diagonals.
+      beta[i,j] = a * Ncontact[i] / Nk[i] + (1-a) * Ncontact[i]^2/M
     } else {
-      beta[i,j]=(1-a)*Ncontact[i]*Ncontact[j]/M
+      beta[i,j] = (1-a)*Ncontact[i]*Ncontact[j]/M
     }
   }
 }
@@ -83,7 +102,8 @@ for(i in 1:2){
 
 ## CODE THE REST YOURSELF
 # compute R0 here
-
+gamma = 1
+R0 = eigen(diag(Nk, 2, 2) %*% beta)$values[1]/gamma
 
 
 
@@ -91,14 +111,14 @@ for(i in 1:2){
 ## Part 3: Simulating HIV early epidemic
 ########################################################################
 # the HIV model with 5 risk groups
-HIV5riskGrs <- function(t, state, parameters) {
+HIV5riskGrs = function(t, state, parameters) {
   with(as.list(c(state, parameters)), {
     
-    dS1 = nu1-sum(BETA[1,] * c(I1,I2,I3,I4,I5))* S1 - mu*S1
-    dS2 = nu2-sum(BETA[2,] * c(I1,I2,I3,I4,I5))* S2 - mu*S2
-    dS3 = nu3-sum(BETA[3,] * c(I1,I2,I3,I4,I5))* S3 - mu*S3
-    dS4 = nu4-sum(BETA[4,] * c(I1,I2,I3,I4,I5))* S4 - mu*S4
-    dS5 = nu5-sum(BETA[5,] * c(I1,I2,I3,I4,I5))* S5 - mu*S5
+    dS1 = nu1 - sum(BETA[1,] * c(I1,I2,I3,I4,I5))* S1 - mu*S1
+    dS2 = nu2 - sum(BETA[2,] * c(I1,I2,I3,I4,I5))* S2 - mu*S2
+    dS3 = nu3 - sum(BETA[3,] * c(I1,I2,I3,I4,I5))* S3 - mu*S3
+    dS4 = nu4 - sum(BETA[4,] * c(I1,I2,I3,I4,I5))* S4 - mu*S4
+    dS5 = nu5 - sum(BETA[5,] * c(I1,I2,I3,I4,I5))* S5 - mu*S5
     
     dI1 = sum(BETA[1,] * c(I1,I2,I3,I4,I5))* S1 - mu*I1 - gamma*I1
     dI2 = sum(BETA[2,] * c(I1,I2,I3,I4,I5))* S2 - mu*I2 - gamma*I2
