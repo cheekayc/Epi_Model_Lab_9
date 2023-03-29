@@ -1,0 +1,346 @@
+Risk Structured Models
+================
+Chee Kay Cheong
+2023-03-28
+
+``` r
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+
+library(tidyverse)
+library(deSolve)
+```
+
+### Q1: First complete the code for the SIS two risk group model, and set up the remaining code to run the model including the parameters, initial state variables, and time steps, etc.
+
+``` r
+# Epidemic model
+SIS2riskGrps = function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    
+    dSH = gamma*IH - betaHH*SH*IH - betaHL*SH*IL
+    dSL = gamma*IL - betaLH*SL*IH - betaLL*SL*IL
+    
+    dIH = betaHH*SH*IH + betaHL*SH*IL - gamma*IH
+    dIL = betaLH*SL*IH + betaLL*SL*IL - gamma*IL
+    
+    # FILL IN THE RETURN LIST HERE - MATCH WITH THE NAME OF THE STATE VARIABLES
+    list(c(dSH, dSL, dIH, dIL))
+  })
+}
+
+# Transmission rates
+betaHH = 10
+betaHL = 0.1
+betaLH = 0.1
+betaLL = 1
+
+# Recovery rate
+gamma = 1  
+
+# Initial state
+NH = 0.2
+NL = 0.8
+IH = 1e-8
+IL = 1e-5
+SH = NH - IH
+SL = NL - IL
+
+# time step
+times = seq(0, 30, by = 0.2)
+```
+
+### Q2: Run the model, plot and show:
+
+1)  the prevalence (%I) in each group over time
+2)  the %S in each group over time
+
+``` r
+state = c(SH = SH, SL = SL, IH = IH, IL = IL)
+parameters = c(betaHH = 10, betaHL = 0.1, betaLH = 0.1, betaLL = 1, gamma = 1)
+
+sim1 = ode(y = state, times = times, func = SIS2riskGrps, parms = parameters)
+```
+
+``` r
+# Plot %I over time
+par(mfrow = c(2, 1), mar = c(3, 3, 1, 1), mgp = c(1.8, 0.5, 0))
+  plot(sim1[ , 'time'], sim1[ , 'IH'], ylab = '% I', xlab = 'Time (day)', type = 'l', col = 'blue', lwd = 1)
+  lines(sim1[ , 'time'], sim1[ , 'IL'], ylab = '% I', xlab = 'Time (day)', type = 'l', col = 'red', lwd = 1)
+  legend('topleft', cex = 0.9, seg.len = 0.8,
+       legend = c('High risk', 'Low risk'),
+       lty = c(1, 1), , lwd = c(2, 2),
+       col = c('blue', 'red'), bty = 'n')
+
+# Plot %S over time
+par(mfrow = c(2, 1), mar = c(3, 3, 1, 1), mgp = c(1.8, 0.5, 0))
+```
+
+![](Lab-Report-9_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+
+``` r
+  plot(sim1[ , 'time'], sim1[ , 'SH'], ylab = '% S', xlab = 'Time (day)', type = 'l', col = 'blue', lwd = 1)
+  legend('topright', cex = 0.9, seg.len = 0.8,
+       legend = 'High risk',
+       lty = 1, lwd = 2,
+       col = 'blue', bty = 'n')
+  plot(sim1[ , 'time'], sim1[ , 'SL'], ylab = '% S', xlab = 'Time (day)', type = 'l', col = 'red', lwd = 1)
+  legend('topright', cex = 0.9, seg.len = 0.8,
+       legend = 'Low risk',
+       lty = 1, lwd = 2,
+       col = 'red', bty = 'n')
+```
+
+![](Lab-Report-9_files/figure-gfm/unnamed-chunk-3-2.png)<!-- -->
+
+### Q3: Calculate R0 using the eigenvalue approach, for the two disease systems below, respectively:
+
+A population with 2 risk groups: \* The high risk group (20% of the
+population), i.e.: nH = 0.2; nL = 0.8;
+
+For simplicity, set the recovery rate to 1, i.e.: gamma = 1
+
+``` r
+# FIRST BETA MATRIX
+beta = matrix(c(10, 0.1, 0.1, 1), 2, 2) # the beta matrix
+NH = 0.2; NL = 0.8;
+n = c(NH, NL)      # n is the vector storing the proportion in each group
+n.matrix = diag(n, 2, 2)  # matrix related to the population size in each group
+# to see it:
+View(n.matrix)
+
+gamma = 1; b = 1;
+
+R.matrix = n.matrix %*% beta / gamma
+
+# to see the output of the eigen function:
+eigen(R.matrix)
+```
+
+    ## eigen() decomposition
+    ## $values
+    ## [1] 2.0013319 0.7986681
+    ## 
+    ## $vectors
+    ##            [,1]        [,2]
+    ## [1,] 0.99779005 -0.01664588
+    ## [2,] 0.06644559  0.99986145
+
+``` r
+## To find R0
+R0 = eigen(R.matrix)$values[1]
+
+## or directly:
+R0 = eigen(n.matrix %*% beta)$values[1]/gamma
+```
+
+``` r
+# SECOND BETA MATRIX
+beta = matrix(c(1, 1.5, 1.5, 0.5), 2, 2) # the beta matrix
+NH = 0.2; NL = 0.8;
+n = c(NH, NL)      # n is the vector storing the proportion in each group
+n.matrix = diag(n, 2, 2)  # matrix related to the population size in each group
+# to see it:
+View(beta)
+View(n.matrix)
+
+gamma = 1; b = 1;
+
+R.matrix = n.matrix %*% beta / gamma
+
+# to see the output of the eigen function:
+eigen(R.matrix)
+```
+
+    ## eigen() decomposition
+    ## $values
+    ## [1]  0.9082763 -0.3082763
+    ## 
+    ## $vectors
+    ##            [,1]       [,2]
+    ## [1,] -0.3900200 -0.5082959
+    ## [2,] -0.9208064  0.8611825
+
+``` r
+## To find R0
+R0 = eigen(R.matrix)$values[1]
+```
+
+### Q4: Calculate R0 for α = 0, 0.2, 0.4, 0.6, 0.8 and 1 using the formulation below. Plot R0 vs α and describe what you found.
+
+If a population can be divided into 2 risk groups: the high risk group
+(20% of the population) has an average of 5 partners; the low risk group
+(80% of the population) has an average of 1 partner. Based on the
+assortative mixing method, the transmission matrix can be formulated per
+the following equations:
+
+α: within-group mixing β: the average transmission rate, here = 1
+
+i, j, or k: number of contacts in each group nk: % of population in
+group k
+
+``` r
+# Set up the beta matrix based on the assortative mixing method
+
+gamma = 1
+
+# create a place holder for a 2x2 matrix
+beta = matrix(0, 2, 2)
+
+# number of contact in each group
+Ncontact = c(5, 1)
+
+# proportion of population in each group
+Nk = c(0.2, 0.8)
+
+# mean number of contact
+M = sum(Ncontact*Nk)
+
+# To consider assortative mixing, use alpha (a) to change the level of assortativeness (alpha is the proportion of within group mixing).
+a1 = seq(0, 1, by = 0.2)
+R = seq(1, 6, by = 1)
+for(k in 1:6){
+  a = a1[k]
+  for(i in 1:2){ # outer loop will loop through rows
+    for (j in 1:2){ # inner loop will loop through columns
+      if(i == j) { # 2 equal signs test if the two quantities are the same. In this case, the diagonals.
+        # We did not include beta in the equation because in this exercise beta = 1
+        beta[i,j] = a * Ncontact[i] / Nk[i] + (1-a) * Ncontact[i]^2/M
+      } else {
+        beta[i,j] = (1-a)*Ncontact[i]*Ncontact[j]/M
+      }
+    }
+  }
+  # Compute R0
+  R[k] = eigen(diag(Nk, 2, 2) %*% beta)$values[1]/gamma
+}
+
+Q4 = tibble(alpha = a1, R0 = R)
+```
+
+``` r
+# Plot R0 vs. alpha
+plot(Q4$alpha, Q4$R0, xlab = 'alpha', ylab = 'R0', main = 'R0 vs. alpha', typ = 'o')
+```
+
+![](Lab-Report-9_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+
+### Q5: Plot the incidence for each group, and for the entire population per 1000 people vs. time.
+
+Simulating early HIV/AIDS epidemic (Anderson et al 1986)
+
+``` r
+# Run the model for 100 yrs
+times = 1:100
+mu = 0.0312;  
+N = c(0.06, 0.31, 0.52, 0.08, 0.03); 
+NU = mu*N;
+gamma = 0.2; 
+m = 1; 
+d = 0.3; # in years
+beta = 0.0217
+BETA = matrix(c(rep(0, 5),
+              0, 0.65, 2.15, 12.9, 21.5,
+              0, 2.15, 7.17, 43.1, 71.8,
+              0, 12.9, 43.1, 258, 431,
+              0, 21.5, 71.8, 431, 718), 5, 5, byrow = T)*beta
+I0 = c(0, 0, 0, 0, 1e-5);  
+S0 = N - I0;  
+A0 = rep(0, 5); 
+cumA0 = rep(0, 5);
+
+parameters = c(BETA = BETA, mu = mu, gamma = gamma, m = m, d = d, nu1 = NU[1], nu2 = NU[2], nu3 = NU[3], nu4 = NU[4], nu5 = NU[5])
+
+state = c(S1 = S0[1], S2 = S0[2], S3 = S0[3], S4 = S0[4], S5 = S0[5],
+          I1 = I0[1], I2 = I0[2], I3 = I0[3], I4 = I0[4], I5 = I0[5],
+          A1 = A0[1], A2 = A0[2], A3 = A0[3], A4 = A0[4], A5 = A0[5],
+          cumA1 = cumA0[1], cumA2 = cumA0[2], cumA3 = cumA0[3], cumA4 = cumA0[4], cumA5 = cumA0[5])
+```
+
+``` r
+# HIV model with 5 risk groups
+HIV5riskGrps = function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    
+    dS1 = nu1 - sum(BETA[1,] * c(I1,I2,I3,I4,I5))* S1 - mu*S1
+    dS2 = nu2 - sum(BETA[2,] * c(I1,I2,I3,I4,I5))* S2 - mu*S2
+    dS3 = nu3 - sum(BETA[3,] * c(I1,I2,I3,I4,I5))* S3 - mu*S3
+    dS4 = nu4 - sum(BETA[4,] * c(I1,I2,I3,I4,I5))* S4 - mu*S4
+    dS5 = nu5 - sum(BETA[5,] * c(I1,I2,I3,I4,I5))* S5 - mu*S5
+    
+    dI1 = sum(BETA[1,] * c(I1,I2,I3,I4,I5))* S1 - mu*I1 - gamma*I1
+    dI2 = sum(BETA[2,] * c(I1,I2,I3,I4,I5))* S2 - mu*I2 - gamma*I2
+    dI3 = sum(BETA[3,] * c(I1,I2,I3,I4,I5))* S3 - mu*I3 - gamma*I3
+    dI4 = sum(BETA[4,] * c(I1,I2,I3,I4,I5))* S4 - mu*I4 - gamma*I4
+    dI5 = sum(BETA[5,] * c(I1,I2,I3,I4,I5))* S5 - mu*I5 - gamma*I5
+    
+    dA1 = d*gamma*I1 - mu*A1 - m*A1
+    dA2 = d*gamma*I2 - mu*A2 - m*A2
+    dA3 = d*gamma*I3 - mu*A3 - m*A3
+    dA4 = d*gamma*I4 - mu*A4 - m*A4
+    dA5 = d*gamma*I5 - mu*A5 - m*A5
+    
+    # cumulative incidence
+    dcumA1 = d*gamma*I1
+    dcumA2 = d*gamma*I2
+    dcumA3 = d*gamma*I3
+    dcumA4 = d*gamma*I4
+    dcumA5 = d*gamma*I5
+    
+    list(c(dS1,dS2,dS3,dS4,dS5, 
+           dI1,dI2,dI3,dI4,dI5, 
+           dA1,dA2,dA3,dA4,dA5, 
+           dcumA1,dcumA2,dcumA3,dcumA4,dcumA5))
+  })
+}
+
+simHIV = ode(y = state, times = times, func = HIV5riskGrps, parms = parameters)
+```
+
+Processing model output for each group & aggregate all groups
+(Incidence)
+
+``` r
+# Incidence per 1000 for each group
+Incidence = (simHIV[-1, c('cumA1', 'cumA2', 'cumA3', 'cumA4', 'cumA5')]- simHIV[-length(times), c('cumA1', 'cumA2', 'cumA3', 'cumA4', 'cumA5')]) / matrix(N, 99, 5, byrow = T)*1000
+
+# Total population incidence per 1000
+totInci = rowSums((simHIV[-1, c('cumA1', 'cumA2', 'cumA3', 'cumA4', 'cumA5')]- simHIV[-length(times), c('cumA1', 'cumA2', 'cumA3', 'cumA4', 'cumA5')]))*1e3
+```
+
+Plot incidence for each group, and for the entire population per 1000
+people vs. time.
+
+``` r
+par(mfrow = c(1,1), cex = 1.2, mar = c(3, 3, 1, 1), mgp = c(1.8, 0.5, 0))
+matplot(Incidence[ , 1:5], type = 'l', lty = 1:5, col = 1:6, lwd = 1.5, ylim = c(0, 35),
+        ylab = 'Incidence AIDS per year per 1000', xlab = 'Time (years)')
+lines(totInci, lwd = 2, col = 6)
+legend('topright', leg = c('0', '1-5', '6-50', '51-100', '100+', 'total'), lty = c(2:6, 1),
+      col = 1:6, lwd = c(rep(1.5, 4), 2), cex = 0.9, bty = 'n')
+```
+
+![](Lab-Report-9_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+
+Processing model output for each group & aggregate all groups
+
+``` r
+# Susceptible fraction per group
+S = simHIV[ , c('S1', 'S2', 'S3', 'S4', 'S5')] / matrix(N, 100, 5, byrow = T)*100
+
+# susceptibility combining all groups
+totS = rowSums(simHIV[ , c('S1', 'S2', 'S3', 'S4', 'S5')])*100
+```
+
+Plot %S for each group, and for the entire population per 1000 people
+vs. time.
+
+``` r
+par(mfrow = c(1,1), cex = 1.2, mar = c(3, 3, 1, 1), mgp = c(1.8, 0.5, 0))
+matplot(S[ , 1:5], type = 'l', lty = 1:5, col = 1:6, lwd = 1.5, ylim = c(0, 100), xlim = c(0, 120),
+        ylab = '%S for HIV/AIDS per year per 1000', xlab = 'Time (years)')
+lines(totS, lwd = 2, col = 6)
+legend('topright', leg = c('0', '1-5', '6-50', '51-100', '100+', 'total'), lty = c(2:6, 1),
+      col = 1:6, lwd = c(rep(1.5, 4), 2), cex = 0.9, bty = 'n')
+```
+
+![](Lab-Report-9_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
